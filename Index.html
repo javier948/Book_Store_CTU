@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookstore Management System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Bookstore Management System</h1>
+
+        <!-- Order Book Section -->
+        <div class="order-form">
+            <h2>Place an Order</h2>
+            <input type="text" id="orderTitle" placeholder="Book Title" required>
+            <button onclick="placeOrder()">Place Order</button>
+            <p id="orderStatus"></p>
+        </div>
+
+        <!-- Add Book Section (Employee Only) -->
+        <div class="add-book-form">
+            <h2>Add a New Book</h2>
+            <input type="text" id="bookTitle" placeholder="Title" required>
+            <input type="text" id="bookAuthor" placeholder="Author" required>
+            <input type="number" id="bookEdition" placeholder="Edition" required>
+            <input type="text" id="bookGenre" placeholder="Genre" required>
+            <input type="number" id="bookQuantity" placeholder="Quantity" required>
+            <button onclick="addBook()">Add Book</button>
+            <p id="addBookStatus"></p>
+        </div>
+
+        <!-- Display Inventory Section -->
+        <div class="book-list">
+            <h2>Available Books</h2>
+            <button onclick="loadInventory()">Load Inventory</button>
+            <div id="inventoryList"></div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
