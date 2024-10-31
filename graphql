@@ -1,0 +1,7 @@
+Book_Store_CTU/
+├── src/               # C++ source code
+├── public/
+│   ├── index.html     # HTML for the interface
+│   └── style.css      # Optional CSS file for additional styling
+│   └── script.js      # JavaScript to handle client-side requests
+└── README.md          # Documentation
