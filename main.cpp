@@ -2,8 +2,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-#include "crow_all.h"
-
+#include "httplib.h"
 
 // Book class
 class Book {
@@ -11,13 +10,13 @@ public:
     std::string title, author, genre;
     int edition, quantity;
 
-    Book(std::string t, std::string a, int e, std::string g, int q) 
+    Book(std::string t, std::string a, int e, std::string g, int q)
         : title(t), author(a), edition(e), genre(g), quantity(q) {}
 
     void displayBook() {
-        std::cout << "Title: " << title << "\nAuthor: " << author 
-                  << "\nEdition: " << edition << "\nGenre: " << genre
-                  << "\nQuantity: " << quantity << std::endl;
+        std::cout << "Title: " << title << "\nAuthor: " << author
+            << "\nEdition: " << edition << "\nGenre: " << genre
+            << "\nQuantity: " << quantity << std::endl;
     }
 };
 
@@ -47,13 +46,8 @@ public:
         return username == u && password == p;
     }
 
-    void placeOrder(std::vector<Book> &inventory) {
-        std::string searchTitle;
-        std::cout << "Enter the book title to search: ";
-        std::cin.ignore();
-        std::getline(std::cin, searchTitle);
-
-        for (Book &b : inventory) {
+    void placeOrder(std::vector<Book>& inventory, const std::string& searchTitle) {
+        for (Book& b : inventory) {
             if (b.title == searchTitle && b.quantity > 0) {
                 std::cout << "Book found! Processing your order...\n";
                 b.quantity--;
@@ -74,17 +68,7 @@ public:
         return username == u && password == p;
     }
 
-    void addBook(std::vector<Book> &inventory) {
-        std::string title, author, genre;
-        int edition, quantity;
-
-        std::cout << "Enter book details:\n";
-        std::cout << "Title: "; std::cin >> title;
-        std::cout << "Author: "; std::cin >> author;
-        std::cout << "Edition: "; std::cin >> edition;
-        std::cout << "Genre: "; std::cin >> genre;
-        std::cout << "Quantity: "; std::cin >> quantity;
-
+    void addBook(std::vector<Book>& inventory, const std::string& title, const std::string& author, int edition, const std::string& genre, int quantity) {
         Book newBook(title, author, edition, genre, quantity);
         inventory.push_back(newBook);
         std::cout << "Book added successfully!" << std::endl;
@@ -105,7 +89,7 @@ public:
 
     void displayInventory() {
         std::cout << "\n--- Inventory ---\n";
-        for (auto &b : inventory) {
+        for (auto& b : inventory) {
             b.displayBook();
         }
         std::cout << std::endl;
@@ -117,12 +101,12 @@ class AuthenticationSystem {
 public:
     std::unordered_map<std::string, User*> users;
 
-    void addUser(User *user) {
+    void addUser(User* user) {
         users[user->getRole() + user->getUsername()] = user;
     }
 
     User* authenticate(std::string username, std::string password) {
-        for (auto &pair : users) {
+        for (auto& pair : users) {
             if (pair.second->login(username, password)) {
                 return pair.second;
             }
@@ -147,29 +131,65 @@ int main() {
     authSystem.addUser(&customer1);
     authSystem.addUser(&employee1);
 
-    std::string username, password;
-    std::cout << "Enter username: ";
-    std::cin >> username;
-    std::cout << "Enter password: ";
-    std::cin >> password;
+    httplib::Server svr;
 
-    User* loggedInUser = authSystem.authenticate(username, password);
+    svr.Post("/login", [&](const httplib::Request& req, httplib::Response& res) {
+        auto username = req.get_param_value("username");
+        auto password = req.get_param_value("password");
 
-    if (loggedInUser) {
-        if (loggedInUser->getRole() == "customer") {
-            std::cout << "Welcome, customer!\n";
-            static_cast<Customer*>(loggedInUser)->placeOrder(inventorySystem.inventory);
-        } else if (loggedInUser->getRole() == "employee") {
-            std::cout << "Welcome, employee!\n";
-            static_cast<Employee*>(loggedInUser)->addBook(inventorySystem.inventory);
-            static_cast<Employee*>(loggedInUser)->viewSalesRecords();
+        User* loggedInUser = authSystem.authenticate(username, password);
+
+        if (loggedInUser) {
+            if (loggedInUser->getRole() == "customer") {
+                res.set_content("Welcome, customer!", "text/plain");
+            }
+            else if (loggedInUser->getRole() == "employee") {
+                res.set_content("Welcome, employee!", "text/plain");
+            }
         }
-    } else {
-        std::cout << "Authentication failed!" << std::endl;
-    }
+        else {
+            res.set_content("Authentication failed!", "text/plain");
+        }
+        });
 
-    // Display current inventory
-    inventorySystem.displayInventory();
+    svr.Post("/place_order", [&](const httplib::Request& req, httplib::Response& res) {
+        auto username = req.get_param_value("username");
+        auto password = req.get_param_value("password");
+        auto title = req.get_param_value("title");
+
+        User* loggedInUser = authSystem.authenticate(username, password);
+
+        if (loggedInUser && loggedInUser->getRole() == "customer") {
+            static_cast<Customer*>(loggedInUser)->placeOrder(inventorySystem.inventory, title);
+            res.set_content("Order placed for: " + title, "text/plain");
+        }
+        else {
+            res.set_content("Authentication failed or not a customer!", "text/plain");
+        }
+        });
+
+    svr.Post("/add_book", [&](const httplib::Request& req, httplib::Response& res) {
+        auto username = req.get_param_value("username");
+        auto password = req.get_param_value("password");
+        auto title = req.get_param_value("title");
+        auto author = req.get_param_value("author");
+        auto edition = std::stoi(req.get_param_value("edition"));
+        auto genre = req.get_param_value("genre");
+        auto quantity = std::stoi(req.get_param_value("quantity"));
+
+        User* loggedInUser = authSystem.authenticate(username, password);
+
+        if (loggedInUser && loggedInUser->getRole() == "employee") {
+            static_cast<Employee*>(loggedInUser)->addBook(inventorySystem.inventory, title, author, edition, genre, quantity);
+            res.set_content("Book added successfully!", "text/plain");
+        }
+        else {
+            res.set_content("Authentication failed or not an employee!", "text/plain");
+        }
+        });
+
+    svr.listen("localhost", 8080);
 
     return 0;
-}              
+}
+
